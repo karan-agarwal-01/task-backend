@@ -2,14 +2,18 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
+    fullname: {
+        type: String,
+    },
     email: {
         type: String,
-        required: true,
         unique: true
     },
     password: {
         type: String,
-        required: true
+        required: function () {
+            return this.authProvider === 'local';
+        },
     },
     onboarded: {
         type: Boolean,
@@ -28,7 +32,20 @@ const UserSchema = new mongoose.Schema({
             bio: String,
             profession: String
         }
-    }
+    },
+    authProvider: {
+        type: String,
+        enum: ['google', 'local', 'facebook', 'linkedin'],
+        default: 'local',
+    },
+    providerId: {
+        type: String
+    },
+    photo: {
+        type: String,
+    },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date
 });
 
 UserSchema.pre('save', async function (next) {
