@@ -1,5 +1,5 @@
 const express = require('express');
-const { loginUser, registerUser, forgetPassword, resetPassword } = require('../controllers/auth.controllers');
+const { loginUser, registerUser, forgetPassword, resetPassword, facebookLogin } = require('../controllers/auth.controllers');
 const router = express.Router();
 const passport = require('passport');
 const generateToken = require('../utils/generateToken');
@@ -8,6 +8,7 @@ router.post('/login', loginUser);
 router.post('/register', registerUser);
 router.post('/forgot-password', forgetPassword);
 router.post('/reset-password/:token', resetPassword);
+router.post('/facebook', facebookLogin);
 
 router.get("/me", (req, res) => {
   if (!req.user) return res.json({ user: null });

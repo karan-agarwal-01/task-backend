@@ -3,6 +3,7 @@ const generateToken = require("../utils/generateToken");
 const crypto = require('crypto');
 const { getResetPasswordToken } = require("../utils/getResetPasswordToken");
 const transport = require("../utils/transport");
+const axios = require('axios');
 
 exports.registerUser = async (req, res) => {   
     
@@ -100,5 +101,81 @@ exports.resetPassword = async (req, res) => {
         res.status(200).json({ message: "Password reset successfully"})
     } catch (error) {
          res.status(400).json({ message: "Invalid or expired token"})
+    }
+};
+
+exports.facebookLogin = async (req, res) => {
+    try {
+        const { accessToken } = req.body;
+
+        if (!accessToken) {
+            return res.status(400).json({ message: 'Access token is required' });
+        }
+
+        // Verify token and get user info from Facebook Graph API
+        const userResponse = await axios.get(
+            `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
+        );
+
+        const { id, name, email, picture } = userResponse.data;
+
+        if (!id) {
+            return res.status(400).json({ message: 'Invalid access token' });
+        }
+
+        // Find or create user
+        let user;
+        if (email) {
+            user = await User.findOne({ 
+                $or: [
+                    { authProvider: 'facebook', providerId: id },
+                    { email: email }
+                ]
+            });
+        } else {
+            user = await User.findOne({ 
+                authProvider: 'facebook', 
+                providerId: id 
+            });
+        }
+
+        const pictureUrl = picture?.data?.url || picture;
+
+        if (!user) {
+            // Create new user
+            user = await User.create({
+                authProvider: 'facebook',
+                providerId: id,
+                fullname: name || 'Facebook User',
+                email: email || undefined,
+                photo: pictureUrl,
+            });
+        } else {
+            // Update existing user
+            user.authProvider = 'facebook';
+            user.providerId = id;
+            if (name) user.fullname = user.fullname || name;
+            if (email) user.email = email;
+            if (pictureUrl) user.photo = user.photo || pictureUrl;
+            await user.save();
+        }
+
+        // Generate JWT token
+        const token = generateToken(user._id);
+
+        res.status(200).json({
+            _id: user._id,
+            email: user.email,
+            fullname: user.fullname,
+            token,
+            onboarded: user.onboarded,
+            photo: user.photo
+        });
+
+    } catch (error) {
+        console.error('Facebook login error:', error.response?.data || error.message);
+        res.status(401).json({ 
+            message: error.response?.data?.error?.message || 'Facebook authentication failed' 
+        });
     }
 };
