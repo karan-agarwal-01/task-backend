@@ -7,13 +7,16 @@ const cors = require('cors');
 const passport = require("./config/passport");
 const session = require('express-session');
 const { default: axios } = require('axios');
+const vercel = require('@vercel/node');
+const { connectToDatabase } = require('./utils/db');
 
 dotenv.config(); 
 
 const app = express();
-const PORT = process.env.PORT;
+// const PORT = process.env.PORT;
 
-mongoose.connect(process.env.MONGODB_URI).then(() => console.log('MongoDB Connected!')).catch(err => console.error(err));
+// mongoose.connect(process.env.MONGODB_URI).then(() => console.log('MongoDB Connected!')).catch(err => console.error(err));
+connectToDatabase();
 
 app.use(cors({ origin: ["http://localhost:5173", process.env.FRONTEND_URL], credentials: true }));
 
@@ -31,8 +34,9 @@ app.use(passport.session());
 
 app.use(express.json());
 
-app.get('/', () => {
+app.get('/', (req, res) => {
     console.log('Hare Krishna');
+    res.status(200).send('Server is running!');
 })
 
 app.get("/proxy/image", async (req, res) => {
@@ -55,6 +59,8 @@ app.get("/proxy/image", async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server started on port: ${PORT}`);
-})
+// app.listen(PORT, () => {
+//     console.log(`Server started on port: ${PORT}`);
+// })
+
+module.exports = vercel(app);
