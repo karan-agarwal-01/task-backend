@@ -2,7 +2,11 @@ const Todos = require("../models/Todos")
 
 exports.createTodos = async (req, res) => {
     try {
-        const todo = await Todos.create(req.body);
+        const todo = await Todos.create({
+            title: req.body.title,
+            completed: req.body.completed || false,
+            user: req.user._id
+        });
         res.status(201).json(todo);
     } catch (error) {
         console.log(error)
@@ -12,7 +16,7 @@ exports.createTodos = async (req, res) => {
 
 exports.getTodos = async (req, res) => {
     try {
-        const todos = await Todos.find();
+        const todos = await Todos.find({ user: req.user._id });
         res.json(todos);
     } catch (error) {
         console.log(error)
@@ -22,7 +26,10 @@ exports.getTodos = async (req, res) => {
 
 exports.updateTodos = async (req, res) => {
     try {
-        const updateTodo = await Todos.findByIdAndUpdate(req.params.id, req.body, { new: true })
+        const updateTodo = await Todos.findByIdAndUpdate({_id: req.params.id, user: req.user._id}, req.body, { new: true })
+        if (!updateTodo) {
+            return res.status(404).json({ message: "Todo not found" });
+        }
         res.json(updateTodo);
     } catch (error) {
         console.log(error);
@@ -32,7 +39,10 @@ exports.updateTodos = async (req, res) => {
 
 exports.deleteTodos =  async (req, res) => {
     try {
-        await Todos.findByIdAndDelete(req.params.id);
+        const deleted = await Todos.findByIdAndDelete({_id: req.params.id, user: req.user._id});
+        if (!deleted) {
+            return res.status(404).json({ message: "Todo not found" });
+        }
         res.json({ message: "Todo Deleted" });
     } catch (error) {
         console.log(error);
