@@ -4,7 +4,6 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const LinkedInStrategy = require('passport-linkedin-oauth2-v2').Strategy;
 const InstagramStrategy = require('passport-instagram').Strategy;
-const { saveImageFromUrl } = require("../utils/saveImage");
 
 const dotenv = require('dotenv')
 
@@ -18,8 +17,6 @@ passport.use(new GoogleStrategy({
 async (accessToken, refreshToken, profile, done) => {
     try {
         const email = profile.emails?.[0]?.value;
-        const photoUrl = profile.photos?.[0]?.value;
-        const storedPhoto = await saveImageFromUrl(photoUrl); 
         let user = await User.findOne({ authProvider: 'google', providerId: profile.id }) || await User.findOne({ email })
         if (!user) {
             user = await User.create({
@@ -27,12 +24,12 @@ async (accessToken, refreshToken, profile, done) => {
                 providerId: profile.id,
                 fullname: profile.displayName,
                 email,
-                photo: storedPhoto,
+                photo: profile.photos?.[0]?.value,
             });
         } else {
             user.authProvider = 'google';
             user.providerId = profile.id;
-            user.photo = storedPhoto;
+            user.photo = user.photo || profile.photos?.[0]?.value;
             await user.save();
         }
         
@@ -86,9 +83,8 @@ async (accessToken, refreshToken, profile, done) => {
     try {
         const email = profile._json?.email;
         const picture = profile._json?.picture;
-        const storedPhoto = picture ? await saveImageFromUrl(picture) : null;
         const fullname = profile._json?.name;
-        // console.log("LinkedIn profile:", profile);
+        console.log("LinkedIn profile:", profile);
 
         let user = await User.findOne({ authProvider: 'linkedin', providerId: profile.id }) || await User.findOne({ email });
 
@@ -98,12 +94,12 @@ async (accessToken, refreshToken, profile, done) => {
                 providerId: profile.id,
                 fullname,
                 email,
-                photo: storedPhoto,
+                photo: picture,
             });
         } else {
             user.authProvider = 'linkedin';
             user.providerId = profile.id;
-            user.photo = user.photo || profile.picture || storedPhoto;
+            user.photo = user.photo || profile.picture || picture;
             await user.save();
         }
 

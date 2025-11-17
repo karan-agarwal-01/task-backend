@@ -5,7 +5,6 @@ const { getResetPasswordToken } = require("../utils/getResetPasswordToken");
 const transport = require("../utils/transport");
 const axios = require('axios');
 const { createPKCEPair } = require("../utils/pkce");
-const { saveImageFromUrl } = require("../utils/saveImage");
 
 exports.registerUser = async (req, res) => {   
     
@@ -212,7 +211,6 @@ exports.XLoginCallback = async (req, res) => {
       })
 
       const xUser = userRes.data.data;
-      const storedPhoto = saveImageFromUrl(xUser.profile_image_url)
 
       let user = await User.findOne({ authProvider: "x", providerId: xUser.id }) || null;
       if (!user) {
@@ -221,12 +219,12 @@ exports.XLoginCallback = async (req, res) => {
             providerId: xUser.id,
             fullname: xUser.name,
             username: xUser.username,
-            photo: storedPhoto
+            photo: xUser.profile_image_url
         });
       } else {
         user.fullname = xUser.name;
         user.username = xUser.username;
-        user.photo = storedPhoto;
+        user.photo = xUser.profile_image_url;
         await user.save();
       }
       const jwt = generateToken(user._id);
@@ -259,7 +257,6 @@ exports.GithubLoginCallback = async (req, res) => {
 
         const gitUser = userRes.data;
         let email = gitUser.email;
-        const storedPhoto = saveImageFromUrl(gitUser.avatar_url);
         if (!email) {
             const emailRes = await axios.get("https://api.github.com/user/emails", {
                 headers: { Authorization: `Bearer ${access_token}` },
@@ -276,12 +273,12 @@ exports.GithubLoginCallback = async (req, res) => {
                 providerId: gitUser.id,
                 fullname: gitUser.name || gitUser.login,
                 email,
-                photo: storedPhoto
+                photo: gitUser.avatar_url
             })
         } else {
             user.authProvider = "github";
             user.providerId = gitUser.id;
-            user.photo = user.photo || storedPhoto;
+            user.photo = user.photo || gitUser.avatar_url;
             await user.save();
         }
         const jwt = generateToken(user._id);

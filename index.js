@@ -8,7 +8,6 @@ const passport = require("./config/passport");
 const session = require('express-session');
 const { default: axios } = require('axios');
 const todosRoutes = require('./routes/todos.routes');
-const { gfs } = require("./config/gridfs");
 
 dotenv.config(); 
 
@@ -60,20 +59,6 @@ app.get("/proxy/image", async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).send("Failed to load image");
-    }
-});
-
-app.get("/image/:filename", async (req, res) => {
-    try {
-        const file = await gfs.files.findOne({ filename: req.params.filename });
-
-        if (!file) return res.status(404).send("File not found");
-
-        const readStream = gfs.createReadStream(file.filename);
-        readStream.pipe(res);
-
-    } catch (err) {
-        res.status(500).send("Error loading image");
     }
 });
 
