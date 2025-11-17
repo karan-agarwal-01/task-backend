@@ -4,6 +4,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const LinkedInStrategy = require('passport-linkedin-oauth2-v2').Strategy;
 const InstagramStrategy = require('passport-instagram').Strategy;
+const { saveImageFromUrl } = require("../utils/saveImage");
+
 const dotenv = require('dotenv')
 
 dotenv.config();
@@ -16,6 +18,8 @@ passport.use(new GoogleStrategy({
 async (accessToken, refreshToken, profile, done) => {
     try {
         const email = profile.emails?.[0]?.value;
+        const photoUrl = profile.photos?.[0]?.value;
+        const storedPhoto = await saveImageFromUrl(photoUrl); 
         let user = await User.findOne({ authProvider: 'google', providerId: profile.id }) || await User.findOne({ email })
         if (!user) {
             user = await User.create({
@@ -23,12 +27,12 @@ async (accessToken, refreshToken, profile, done) => {
                 providerId: profile.id,
                 fullname: profile.displayName,
                 email,
-                photo: profile.photos?.[0]?.value,
+                photo: storedPhoto,
             });
         } else {
             user.authProvider = 'google';
             user.providerId = profile.id;
-            user.photo = user.photo || profile.photos?.[0]?.value;
+            user.photo = storedPhoto;
             await user.save();
         }
         
@@ -39,38 +43,38 @@ async (accessToken, refreshToken, profile, done) => {
     }
 }));
 
-passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID,
-    clientSecret: process.env.FACEBOOK_APP_SECRET,
-    callbackURL: `${process.env.BASE_URL}/api/auth/facebook/callback`,
-    profileFields: ["id", "displayName", "emails", "photos"],
-},
-async (accessToken, refreshToken, profile, done) => {
-    try {
-        const email = profile.emails?.[0]?.value;
-        let user = await User.findOne({ authProvider: 'facebook', providerId: profile.id }) || await User.findOne({ email });
+// passport.use(new FacebookStrategy({
+//     clientID: process.env.FACEBOOK_APP_ID,
+//     clientSecret: process.env.FACEBOOK_APP_SECRET,
+//     callbackURL: `${process.env.BASE_URL}/api/auth/facebook/callback`,
+//     profileFields: ["id", "displayName", "emails", "photos"],
+// },
+// async (accessToken, refreshToken, profile, done) => {
+//     try {
+//         const email = profile.emails?.[0]?.value;
+//         let user = await User.findOne({ authProvider: 'facebook', providerId: profile.id }) || await User.findOne({ email });
 
-        if (!user) {
-            user = await User.create({
-                authProvider: 'facebook',
-                providerId: profile.id,
-                fullname: profile.displayName,
-                email,
-                photo: profile.photos?.[0]?.value,
-            });
-        } else {
-            user.authProvider = 'facebook';
-            user.providerId = profile.id;
-            user.photo = user.photo || profile.photos?.[0]?.value;
-            await user.save();
-        }
+//         if (!user) {
+//             user = await User.create({
+//                 authProvider: 'facebook',
+//                 providerId: profile.id,
+//                 fullname: profile.displayName,
+//                 email,
+//                 photo: profile.photos?.[0]?.value,
+//             });
+//         } else {
+//             user.authProvider = 'facebook';
+//             user.providerId = profile.id;
+//             user.photo = user.photo || profile.photos?.[0]?.value;
+//             await user.save();
+//         }
         
-        return done(null, user);
-    } catch (error) {
-        console.log("Google Auth Error");
-        return done(error, null);
-    }
-}));
+//         return done(null, user);
+//     } catch (error) {
+//         console.log("Google Auth Error");
+//         return done(error, null);
+//     }
+// }));
 
 passport.use(new LinkedInStrategy({
     clientID: process.env.LINKEDIN_CLIENT_ID,
@@ -82,8 +86,9 @@ async (accessToken, refreshToken, profile, done) => {
     try {
         const email = profile._json?.email;
         const picture = profile._json?.picture;
+        const storedPhoto = picture ? await saveImageFromUrl(picture) : null;
         const fullname = profile._json?.name;
-        console.log("LinkedIn profile:", profile);
+        // console.log("LinkedIn profile:", profile);
 
         let user = await User.findOne({ authProvider: 'linkedin', providerId: profile.id }) || await User.findOne({ email });
 
@@ -93,12 +98,12 @@ async (accessToken, refreshToken, profile, done) => {
                 providerId: profile.id,
                 fullname,
                 email,
-                photo: picture,
+                photo: storedPhoto,
             });
         } else {
             user.authProvider = 'linkedin';
             user.providerId = profile.id;
-            user.photo = user.photo || profile.picture || picture;
+            user.photo = user.photo || profile.picture || storedPhoto;
             await user.save();
         }
 

@@ -8,6 +8,7 @@ const passport = require("./config/passport");
 const session = require('express-session');
 const { default: axios } = require('axios');
 const todosRoutes = require('./routes/todos.routes');
+const { gfs } = require("./config/gridfs");
 
 dotenv.config(); 
 
@@ -43,7 +44,15 @@ app.get("/proxy/image", async (req, res) => {
         const response = await axios.get(imageUrl, {
             responseType: "arraybuffer",
             headers: {
-                "User-Agent": "Mozilla/5.0"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Referer": "https://www.linkedin.com/",
+                "Sec-Fetch-Dest": "image",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site"
             }
         });
         res.setHeader("Content-Type", response.headers["content-type"]);
@@ -51,6 +60,20 @@ app.get("/proxy/image", async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).send("Failed to load image");
+    }
+});
+
+app.get("/image/:filename", async (req, res) => {
+    try {
+        const file = await gfs.files.findOne({ filename: req.params.filename });
+
+        if (!file) return res.status(404).send("File not found");
+
+        const readStream = gfs.createReadStream(file.filename);
+        readStream.pipe(res);
+
+    } catch (err) {
+        res.status(500).send("Error loading image");
     }
 });
 
