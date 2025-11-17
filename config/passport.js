@@ -29,7 +29,7 @@ async (accessToken, refreshToken, profile, done) => {
         } else {
             user.authProvider = 'google';
             user.providerId = profile.id;
-            user.photo = user.photo || profile.photos?.[0]?.value;
+            user.photo = profile.photos?.[0]?.value;
             await user.save();
         }
         
