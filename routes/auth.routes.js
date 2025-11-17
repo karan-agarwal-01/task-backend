@@ -1,8 +1,12 @@
 const express = require('express');
-const { loginUser, registerUser, forgetPassword, resetPassword, facebookLogin } = require('../controllers/auth.controllers');
+const { loginUser, registerUser, forgetPassword, resetPassword, facebookLogin, XLogin, XLoginCallback, GithubLogin, GithubLoginCallback } = require('../controllers/auth.controllers');
 const router = express.Router();
 const passport = require('passport');
+const crypto = require("crypto");
 const generateToken = require('../utils/generateToken');
+const { default: axios } = require('axios');
+const User = require('../models/User');
+
 
 router.post('/login', loginUser);
 router.post('/register', registerUser);
@@ -51,5 +55,11 @@ router.get("/instagram/callback", passport.authenticate("instagram", { failureRe
     res.redirect(`${process.env.FRONTEND_URL}/auth/social-success?token=${jwt}`);
   }
 );
+
+router.get('/github/login', GithubLogin);
+router.get('/github/callback', GithubLoginCallback);
+
+router.get('/x/login', XLogin);
+router.get('/x/callback', XLoginCallback);
 
 module.exports = router;

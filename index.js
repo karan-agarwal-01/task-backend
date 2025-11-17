@@ -7,6 +7,7 @@ const cors = require('cors');
 const passport = require("./config/passport");
 const session = require('express-session');
 const { default: axios } = require('axios');
+const todosRoutes = require('./routes/todos.routes');
 
 dotenv.config(); 
 
@@ -55,6 +56,7 @@ app.get("/proxy/image", async (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/todos', todosRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server started on port: ${PORT}`);

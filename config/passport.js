@@ -117,7 +117,7 @@ passport.use(new InstagramStrategy({
 },
 async (accessToken, refreshToken, profile, done) => {
     try {
-        console.log("Instagram profile:", profile);
+        // console.log("Instagram profile:", profile);
 
         const fullname = profile.displayName;
         const photo = profile._json?.data?.profile_picture;

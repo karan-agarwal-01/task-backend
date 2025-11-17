@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { getResetPasswordToken } = require("../utils/getResetPasswordToken");
 const transport = require("../utils/transport");
 const axios = require('axios');
+const { createPKCEPair } = require("../utils/pkce");
 
 exports.registerUser = async (req, res) => {   
     
@@ -179,3 +180,111 @@ exports.facebookLogin = async (req, res) => {
         });
     }
 };
+
+exports.XLogin = (req, res) => {
+    const twitterURL = `https://twitter.com/i/oauth2/authorize?` + `response_type=code&client_id=${process.env.X_CLIENT_ID}&redirect_uri=${encodeURIComponent(`${process.env.BASE_URL}/api/auth/x/callback`)}` + `&scope=tweet.read users.read offline.access` + `&state=state123&code_challenge=challenge&code_challenge_method=plain`;
+    res.json({ url: twitterURL });
+}
+
+exports.XLoginCallback = async (req, res) => {
+    const { code } = req.query;
+
+    try {
+      const response = await axios.post( "https://api.twitter.com/2/oauth2/token", new URLSearchParams({
+          code,
+          grant_type: "authorization_code",
+          client_id: process.env.X_CLIENT_ID,
+          redirect_uri: `${process.env.BASE_URL}/api/auth/x/callback`,
+          code_verifier: "challenge"
+        }),
+        { 
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded",
+                Authorization: "Basic " + Buffer.from(`${process.env.X_CLIENT_ID}:${process.env.X_CLIENT_SECRET}`).toString("base64")
+            }
+        }
+      );
+
+      const access_token = response.data.access_token;
+      const userRes = await axios.get("https://api.twitter.com/2/users/me?user.fields=profile_image_url,name,username", {
+        headers: { Authorization: `Bearer ${access_token}` }
+      })
+
+      const xUser = userRes.data.data;
+
+      let user = await User.findOne({ authProvider: "x", providerId: xUser.id }) || null;
+      if (!user) {
+        user = await User.create({
+            authProvider: "x",
+            providerId: xUser.id,
+            fullname: xUser.name,
+            username: xUser.username,
+            photo: xUser.profile_image_url
+        });
+      } else {
+        user.fullname = xUser.name;
+        user.username = xUser.username;
+        user.photo = xUser.profile_image_url;
+        await user.save();
+      }
+      const jwt = generateToken(user._id);
+      res.redirect(`${process.env.FRONTEND_URL}/auth/social-success?token=${jwt}`);
+    } catch (err) {
+      console.log(err.response?.data || err);
+      res.send("Error logging in with X");
+    }
+}
+
+exports.GithubLogin = (req, res) => {
+    const redirectURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user`;
+    res.json({ url: redirectURL });
+};
+
+exports.GithubLoginCallback = async (req, res) => {
+    const { code } = req.query;
+    try {
+        const tokenRes = await axios.post("https://github.com/login/oauth/access_token",{
+            client_id: process.env.GITHUB_CLIENT_ID,
+            client_secret: process.env.GITHUB_CLIENT_SECRET,
+            code: code
+        }, { headers: { Accept: "application/json" }})
+
+        const access_token = tokenRes.data.access_token;
+
+        const userRes = await axios.get("https://api.github.com/user", {
+            headers: { Authorization: `Bearer ${access_token}` }
+        })
+
+        const gitUser = userRes.data;
+        let email = gitUser.email;
+        if (!email) {
+            const emailRes = await axios.get("https://api.github.com/user/emails", {
+                headers: { Authorization: `Bearer ${access_token}` },
+            })
+
+            const primaryEmail = emailRes.data.find((e) => e.primary);
+            email = primaryEmail?.email
+        };
+
+        let user = await User.findOne({authProvider: "github", providerId: gitUser.id}) || await User.findOne({ email })
+        if (!user) {
+            user = await User.create({
+                authProvider: "github",
+                providerId: gitUser.id,
+                fullname: gitUser.name || gitUser.login,
+                email,
+                photo: gitUser.avatar_url
+            })
+        } else {
+            user.authProvider = "github";
+            user.providerId = gitUser.id;
+            user.photo = user.photo || gitUser.avatar_url;
+            await user.save();
+        }
+        const jwt = generateToken(user._id);
+        res.redirect(`${process.env.FRONTEND_URL}/auth/social-success?token=${jwt}`);
+    } catch (error) {
+        console.log(error);
+        res.send("GitHub Login Error")
+    }
+}

@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema({
     },
     email: {
         type: String,
+        sparse: true,
         unique: true
     },
     password: {
@@ -35,7 +36,7 @@ const UserSchema = new mongoose.Schema({
     },
     authProvider: {
         type: String,
-        enum: ['google', 'local', 'facebook', 'linkedin'],
+        enum: ['google', 'local', 'facebook', 'linkedin', 'x', 'github'],
         default: 'local',
     },
     providerId: {
